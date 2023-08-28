@@ -33,19 +33,19 @@
 #' @export
 approx_subset <- function(input_df, column_name, target_length, target_sum, sum_tolerance = 0.1, max_iterations = 1000, seed = NULL) {
   if (!is.null(seed)) set.seed(seed)
-  
+
   n <- nrow(input_df)
   best_subset <- NULL
   smallest_difference <- Inf
   tolerance_sum <- target_sum * sum_tolerance
-  
+
   for (i in 1:max_iterations) {
     subset_indices <- sample(1:n, size = target_length)
     subset_sum <- sum(select(slice(input_df, subset_indices), {{column_name}}))
-    
+
     if (between(subset_sum - target_sum, -tolerance_sum, tolerance_sum)) {
       curr_difference <- abs(subset_sum - target_sum)
-      
+
       if (curr_difference < smallest_difference) {
         best_subset <- slice(input_df, subset_indices)
         smallest_difference <- curr_difference
@@ -53,7 +53,7 @@ approx_subset <- function(input_df, column_name, target_length, target_sum, sum_
       }
     }
   }
-  cat('Sum difference:', smallest_difference)
+  cat('Sum difference:', smallest_difference, '\n')
   return(best_subset)
 }
 
