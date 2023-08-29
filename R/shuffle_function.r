@@ -1,25 +1,21 @@
 #' Shuffle Columns in a Dataset
 #'
-#' This function shuffles specified columns in a dataset. It offers the flexibility
-#' to shuffle columns individually or together, while preserving the order of
-#' missing values. Additionally, an oversampling option is provided to augment the
-#' dataset size before shuffling.
+#' This function shuffles specified columns in a dataset while maintaining the order
+#' of missing values. It offers the flexibility to shuffle columns individually or
+#' together, and includes an option to oversample the dataset before shuffling.
 #'
 #' @param dataset A data frame containing the dataset.
 #' @param column_lists A list of lists specifying columns to be shuffled. Each
-#'   inner list can contain either column names or column indices. If not
-#'   provided, all columns will be shuffled individually.
-#' @param oversample Logical. If TRUE, oversampling will be applied to the dataset
-#'   before shuffling. Default is FALSE.
+#'   inner list can contain either column names or column indices. If not provided,
+#'   all columns will be shuffled individually.
+#' @param oversample Logical. If TRUE, oversampling is applied to the dataset before
+#'   shuffling. Default is FALSE.
 #' @param oversample_factor Numeric. The factor by which the dataset should be
-#'   oversampled. It should be greater than 1. For example, an oversample_factor
-#'   of 1.2 will result in a 20% increase in dataset size. Applicable only if
-#'   oversample is TRUE. Default is 1.
-#' @param seed An optional numeric value to set the random seed. When provided,
-#'   the shuffling process will be deterministic. If not provided, the shuffling
-#'   will use a different random seed each time, resulting in different shuffling.
-#'
-#' @return A shuffled dataset.
+#'   oversampled. For example, an oversample_factor of 1.2 increases the dataset
+#'   size by 20%. Applicable only if oversample is TRUE. Default is 1.
+#' @param seed An optional numeric value to set the random seed, ensuring deterministic
+#'   shuffling if provided. If omitted, the shuffling uses different random seeds
+#'   each time.
 #'
 #' @examples
 #' data <- data.frame(
@@ -42,19 +38,20 @@ shuffle_columns <- function(dataset, column_lists = NULL, oversample = FALSE, ov
   if (!is.null(seed)) {
     set.seed(seed)
   }
-  
+
   if (is.null(column_lists)) {
     column_lists <- list(names(dataset))
   } else if (!is.list(column_lists)) {
     stop("column_lists should be a list.")
   }
-  
+
   if (oversample) {
-    oversampled_size <- ceiling(nrow(dataset) * oversample_factor)
-    dataset <- dataset %>%
-      sample_n(oversampled_size, replace = TRUE)
+    oversampled_size <- ceiling(nrow(dataset) * (oversample_factor - 1))
+    dataset <- dataset |>
+      slice_sample(n = oversampled_size, replace = T) |>
+      bind_rows(dataset)
   }
-  
+
   for (col_list in column_lists) {
     if (is.character(col_list)) {
       cols <- col_list
@@ -63,21 +60,10 @@ shuffle_columns <- function(dataset, column_lists = NULL, oversample = FALSE, ov
     } else {
       stop("Each element in column_lists should be a list of column names or column indices.")
     }
-    
-    if (length(cols) == 1) {
-      dataset <- dataset %>%
-        mutate(across(cols, ~ ifelse(!is.na(.), sample(., length(.)), .)))
-    } else if (length(cols) > 1) {
-      temp_df <- dataset %>%
-        select(all_of(cols))
-      print(cols)
-      temp_df <- temp_df %>%
-        slice_sample(prop = 1)
-        
-      dataset <- dataset %>%
-        mutate(across(cols, ~ temp_df[[cur_column()]]))
-    }
+    non_missing_indices <- which(!is.na(dataset |> select(all_of(cols)) |> pull(cols[1])))
+    shuffled_values <- slice(select(dataset, all_of(cols)), non_missing_indices) |>
+      mutate(across(all_of(cols), sample))
+    dataset[non_missing_indices, cols] <- shuffled_values[, cols]
   }
-  
   return(dataset)
 }
